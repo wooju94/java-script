@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>관광지 체감기후지수</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        padding: 2rem;
+      }
+      select,
+      button {
+        font-size: 1rem;
+        padding: 0.5rem;
+      }
+      #weatherInfo {
+        margin-top: 1rem;
+        padding: 1rem;
+        border-radius: 8px;
+        background-color: #F7F7F7;
+      }
+      .grade {
+        font-weight: bold;
+        padding: 0.3rem 0.6rem;
+        border-radius: 4px;
+        display: inline-block;
+      }
+      .매우좋음 {
+        background: #1ABC9C;
+        color: white;
+      }
+      .좋음 {
+        background: #2ECC71;
+        color: white;
+      }
+      .보통 {
+        background: #F1C40F;
+        color: black;
+      }
+      .나쁨 {
+        background: #E67E22;
+        color: white;
+      }
+      .매우나쁨 {
+        background: #E74C3C;
+        color: white;
+      }
+      #map {
+        width: 100%;
+        height: 400px;
+        margin-top: 2rem;
+        border: 1px solid #ccc;
+      }
+    </style>
+    <!--
+        <script>: 순서가 중요. html과 함께 순서대로 처리
+        <script defer>: DOM 요소 접근 오류 방지. 로딩 최적화. HTML이 모두 실행된 후 처리
+    -->
+    <script
+      defer
+      type="text/javascript"
+      src="//dapi.kakao.com/v2/maps/sdk.js?appkey=ba15038e7cc8353a68beeca9f2c606ef"
+    ></script>
+  </head>
+  <body>
+    <h2>관광지 체감기후지수</h2>
+    <label for="region">지역 선택: </label>
+    <select name="region" id="region">
+      <option value="서울 중구|1111000000">서울 중구</option>
+      <option value="부산 중구|2611000000">부산 중구</option>
+      <option value="대구 중구|2711000000">대구 중구</option>
+      <option value="인천 중구|2811000000">인천 중구</option>
+      <option value="광주 동구|2911000000">광주 동구</option>
+      <option value="대전 중구|3011000000">대전 중구</option>
+      <option value="울산 남구|3114000000">울산 남구</option>
+      <option value="세종|3611000000">세종</option>
+      <option value="강릉시|4215000000">강릉시</option>
+      <option value="청주시|4311000000">청주시</option>
+      <option value="전주시|4511000000">전주시</option>
+      <option value="목포시|4611000000">목포시</option>
+      <option value="창원시|4812000000">창원시</option>
+      <option value="제주 제주시|5011000000">제주 제주시</option>
+      <option value="제주 서귀포시|5013000000" selected>제주 서귀포시</option>
+    </select>
+    <button onclick="loadData()">조회하기</button>
+    <div id="weatherInfo">데이터를 불러오는 중입니다....</div>
+    <div id="map"></div>
+    <script>
+      let map;
+      let marker;
+      const serviceKey =
+        "q/n0Bd26YP768jWV9LLfzrf3B0lq0/Kdb2NM9BXtE1Xo0RXgjHuNiTJg5E7k2+diH9DNsmpr7MDI+oI1Z0aZVQ==";
+      function loadData() {
+        // 서울 중구|1111000000"
+        const selected = document.getElementById("region").value;
+        // cityAreaId=1111000000
+        const [, cityAreaId] = selected.split("|");
+        const now = new Date();
+        // 10, 02
+        const CURRENT_DATE = `${now.getFullYear()}${String(
+          now.getMonth() + 1
+        ).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}00`;
+        const DAY = 3;
+        const url = `https://apis.data.go.kr/1360000/TourStnInfoService1/getCityTourClmIdx1?serviceKey=${encodeURIComponent(
+          serviceKey
+        )}&pageNo=1&numOfRows=10&dataType=JSON&CURRENT_DATE=${CURRENT_DATE}&DAY=${DAY}&CITY_AREA_ID=${cityAreaId}`;
+        console.log(url);
+      
+        fetch(url).then((res)-res.json()).then((data)=>{
+            console.log("전체 응답 구조 확인 : " ,JSON.stringify(data,null,2));
+        })
+    }
+      window.onload = function(){
+        loadData();
+      };
+    </script>
+  </body>
+</html>
