@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>경기도 공공체육시설 검색</title>
+  <style>
+   
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      max-width: 700px;
+      margin: 2rem auto;
+      padding: 1rem;
+      background-color: #f8f9fa;
+      color: #333;
+    }
+
+    h2 {
+      text-align: center;
+      color: #2c3e50;
+    }
+
+    
+    #searchInput {
+      width: 70%;
+      padding: 0.6rem;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      margin-right: 0.5rem;
+    }
+
+    button {
+      padding: 0.6rem 1.2rem;
+      font-size: 1rem;
+      background-color: #3498db;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #2980b9;
+    }
+
+    
+    ul#facilityList {
+      margin-top: 2rem;
+      padding: 0;
+      list-style: none;
+    }
+
+    ul#facilityList li {
+      background-color: white;
+      margin-bottom: 0.8rem;
+      padding: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+      transition: transform 0.2s;
+    }
+
+    ul#facilityList li:hover {
+      transform: translateY(-3px);
+    }
+  </style>
+</head>
+<body>
+  <h2>경기도 공공체육시설 검색</h2>
+
+  <!-- 입력창과 버튼 -->
+  <div style="text-align: center; margin-bottom: 1rem;">
+    <input type="text" id="searchInput" placeholder="시설명이나 주소 검색" />
+    <button onclick="searchFacility()">검색</button>
+  </div>
+
+  <!-- 검색 결과 출력 -->
+  <ul id="facilityList"></ul>
+
+  <script>
+    let allFacilities = []; // 전체 시설 저장할 변수
+
+    // fetch로 공공데이터 가져오기
+    fetch("https://openapi.gg.go.kr/PubPhstFtM?KEY=a7577b4ca95e4517bd2c24979e9d0504&Type=json&pIndex=1&pSize=100")
+      .then(res => res.json())
+      .then(data => {
+        allFacilities = data.PubPhstFtM[1].row; // 실제 데이터만 추출
+        displayFacilities(allFacilities); // 처음엔 전체 출력
+      })
+      .catch(err => {
+        console.error("데이터 불러오기 실패", err);
+      });
+
+    // 검색 버튼 눌렀을 때 실행되는 함수
+    function searchFacility() {
+      const keyword = document.getElementById("searchInput").value.trim();
+      if (!keyword) {
+        displayFacilities(allFacilities);
+        return;
+      }
+
+      const filtered = allFacilities.filter(item =>
+        item.FACLT_NM.includes(keyword) || item.REFINE_LOTNO_ADDR.includes(keyword)
+      );
+
+      displayFacilities(filtered);
+    }
+
+    // 리스트를 HTML에 출력하는 함수
+    function displayFacilities(facilities) {
+      const listEl = document.getElementById("facilityList");
+      listEl.innerHTML = "";
+
+      if (facilities.length === 0) {
+        listEl.innerHTML = "<li>검색 결과가 없습니다.</li>";
+        return;
+      }
+
+      facilities.forEach(item => {
+        const li = document.createElement("li");
+        li.innerText = `${item.SIGUN_NM} - ${item.FACLT_NM} (${item.REFINE_LOTNO_ADDR})`;
+        listEl.appendChild(li);
+      });
+    }
+  </script>
+</body>
+</html>

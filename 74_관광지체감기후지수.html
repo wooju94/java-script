@@ -4,6 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>관광지 체감기후지수</title>
+    <!--
+        <script> :순서가 중요. html과 함께 순서대로 처리
+        <script defer> : DOM 요소 접근 오류 방지. 로딩 최적화.HTML이 모두 실행된 후 처리
+        + window.onload() 와 비슷한 기능 (= 일단 html 다 읽고나서 실행해줘!)
+    -->
+    <script
+      defer
+      type="text/javascript"
+      src="//dapi.kakao.com/v2/maps/sdk.js?appkey=62727505cda834a0a8563345c1c569d1&autoload=false&libraries=services"
+    ></script>
     <style>
       body {
         font-family: sans-serif;
@@ -53,19 +63,10 @@
         border: 1px solid #ccc;
       }
     </style>
-    <!--
-        <script>: 순서가 중요. html과 함께 순서대로 처리
-        <script defer>: DOM 요소 접근 오류 방지. 로딩 최적화. HTML이 모두 실행된 후 처리
-    -->
-    <script
-      defer
-      type="text/javascript"
-      src="//dapi.kakao.com/v2/maps/sdk.js?appkey=ba15038e7cc8353a68beeca9f2c606ef"
-    ></script>
   </head>
   <body>
     <h2>관광지 체감기후지수</h2>
-    <label for="region">지역 선택: </label>
+    <label for="region">지역 선택</label>
     <select name="region" id="region">
       <option value="서울 중구|1111000000">서울 중구</option>
       <option value="부산 중구|2611000000">부산 중구</option>
@@ -90,14 +91,14 @@
       let map;
       let marker;
       const serviceKey =
-        "q/n0Bd26YP768jWV9LLfzrf3B0lq0/Kdb2NM9BXtE1Xo0RXgjHuNiTJg5E7k2+diH9DNsmpr7MDI+oI1Z0aZVQ==";
+        "fQlfPKnYI5jKgbG0KRQHAE1byN6vF46OBF/B7t4svBhp/3n+vsVBaK322v5yH+AJbtMYn5d80ICQgzXeIlxbcw==";
       function loadData() {
-        // 서울 중구|1111000000"
+        console.log("loadData 호출");
+        // 서울 중구|1111000000
         const selected = document.getElementById("region").value;
-        // cityAreaId=1111000000
+        // 서울 중구(날려버리기) | cityAreaId = 1111000000
         const [, cityAreaId] = selected.split("|");
         const now = new Date();
-        // 10, 02
         const CURRENT_DATE = `${now.getFullYear()}${String(
           now.getMonth() + 1
         ).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}00`;
@@ -106,13 +107,74 @@
           serviceKey
         )}&pageNo=1&numOfRows=10&dataType=JSON&CURRENT_DATE=${CURRENT_DATE}&DAY=${DAY}&CITY_AREA_ID=${cityAreaId}`;
         console.log(url);
-      
-        fetch(url).then((res)-res.json()).then((data)=>{
-            console.log("전체 응답 구조 확인 : " ,JSON.stringify(data,null,2));
-        })
-    }
-      window.onload = function(){
-        loadData();
+        fetch(url)
+          .then((res) => res.json())
+          .then((data) => {
+            // JOSN.stringify(문자열로 바꿀 자바스크립트 객체, 필터링 함수, 공백 수)
+            console.log("전체 응답 구조 확인: ", JSON.stringify(data, null, 2));
+            // optional chaning(옵셔널 체이닝,?): data -> responese -> header 안전하게 접근
+            //  undefined나 null이 아닐 겨웅header에 접근
+            const header = data.response?.header;
+            const body = data.response?.body;
+            if (header?.resultCode !== "00") {
+              document.getElementById("weatherInfo").innerText =
+                "해당 지역의 데이터가 없습니다.";
+              return;
+            }
+            const items = body?.items?.item;
+            if (!items || items.length === 0) {
+              document.getElementById("weatherInfo").innerText =
+                "해당 지역의 데이터가 없습니다.";
+              return;
+            }
+            let html = "";
+            items.forEach((item, index) => {
+              html += `
+        <strong>날짜:</strong> ${item.tm}<br>
+        <strong>지역:</strong> ${item.totalCityName}<br>
+        <strong>체감기후지수:</strong> ${item.kmaTci}<br>
+        <strong>등급:</strong>
+        <span class="grade ${item.TCI_GRADE}">${item.TCI_GRADE}</span>
+        <hr>
+      `;
+              if (index === 0) {
+                moveMapByCityName(item.totalCityName);
+              }
+            });
+            document.getElementById("weatherInfo").innerHTML = html;
+          })
+          .catch((err) => {
+            console.error("fetch 실패 또는 파싱 오류", err);
+            document.getElementById("weatherInfo").innerText =
+              "데이터 불러오기 실패";
+          });
+      }
+      function moveMapByCityName(address) {
+        const geocoder = new kakao.maps.services.Geocoder();
+        geocoder.addressSearch(address, function (result, status) {
+          if (status === kakao.maps.services.Status.OK) {
+            const coords = new kakao.maps.LatLng(result[0].y, result[0].x);
+            map.setCenter(coords);
+            if (marker) marker.setMap(null);
+            marker = new kakao.maps.Marker({
+              map: map,
+              position: coords,
+            });
+          } else {
+            console.warn("주소를 찾을 수 없습니다:", address);
+          }
+        });
+      }
+      window.onload = function () {
+        kakao.maps.load(function () {
+          // 서귀포시 초기 중심
+          map = new kakao.maps.Map(document.getElementById("map"), {
+            center: new kakao.maps.LatLng(33.2539, 126.5596),
+            // 확대 정도
+            level: 9,
+          });
+          loadData(); // 초기 로딩
+        });
       };
     </script>
   </body>
