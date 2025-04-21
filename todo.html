@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>나의 할 일</title>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 20px auto; }
+    h1, h2 { font-weight: bold; }
+    input[type="text"] { width: 80%; padding: 10px; margin: 5px 0; }
+    button { padding: 8px 12px; margin-left: 5px; }
+    li { margin: 10px 0; list-style: none; display: flex; align-items: center; }
+    .task-text { flex-grow: 1; }
+    .task-controls { margin-left: 10px; }
+  </style>
+</head>
+<body>
+  <h1>나의 할 일</h1>
+  <input type="text" id="todoInput" placeholder="할 일 입력" />
+  <button onclick="saveNote()">추가</button>
+
+  <h2>할 일 목록</h2>
+  <ul id="todoList"></ul>
+
+  <script>
+    let db;
+
+    const request = indexedDB.open("MyTodolistDB", 1);
+
+    request.onupgradeneeded = function (e) {
+      db = e.target.result;
+      if (!db.objectStoreNames.contains("List")) {
+        db.createObjectStore("List", { keyPath: "id", autoIncrement: true });
+      }
+    };
+
+    request.onsuccess = function (e) {
+      db = e.target.result;
+      displayList();
+    };
+
+    request.onerror = function () {
+      alert("데이터베이스 열기 실패");
+    };
+
+    function saveNote() {
+      const input = document.getElementById("todoInput");
+      const text = input.value.trim();
+      if (!text) return;
+
+      const tx = db.transaction("List", "readwrite");
+      const store = tx.objectStore("List");
+      store.add({ text: text, created: new Date() });
+
+      tx.oncomplete = function () {
+        input.value = "";
+        displayList();
+      };
+    }
+
+    function displayList() {
+      const list = document.getElementById("todoList");
+      list.innerHTML = "";
+
+      const tx = db.transaction("List", "readonly");
+      const store = tx.objectStore("List");
+      const request = store.openCursor();
+
+      request.onsuccess = function (e) {
+        const cursor = e.target.result;
+        if (cursor) {
+          const li = document.createElement("li");
+
+          const span = document.createElement("span");
+          span.textContent = cursor.value.text;
+          span.className = "task-text";
+
+          const editBtn = document.createElement("button");
+          editBtn.textContent = "수정";
+          editBtn.onclick = () => editItem(cursor.value.id, cursor.value.text);
+
+          const deleteBtn = document.createElement("button");
+          deleteBtn.textContent = "삭제";
+          deleteBtn.onclick = () => deleteItem(cursor.value.id);
+
+          li.appendChild(span);
+          li.appendChild(editBtn);
+          li.appendChild(deleteBtn);
+
+          list.appendChild(li);
+          cursor.continue();
+        }
+      };
+    }
+
+    function deleteItem(id) {
+      const tx = db.transaction("List", "readwrite");
+      const store = tx.objectStore("List");
+      store.delete(id);
+
+      tx.oncomplete = function () {
+        displayList();
+      };
+    }
+
+    function editItem(id, currentText) {
+      const list = document.getElementById("todoList");
+      list.innerHTML = "";
+
+      const input = document.createElement("input");
+      input.type = "text";
+      input.value = currentText;
+
+      const saveBtn = document.createElement("button");
+      saveBtn.textContent = "저장";
+      saveBtn.onclick = function () {
+        const tx = db.transaction("List", "readwrite");
+        const store = tx.objectStore("List");
+        store.put({ id: id, text: input.value, created: new Date() });
+        tx.oncomplete = () => displayList();
+      };
+
+      const li = document.createElement("li");
+      li.appendChild(input);
+      li.appendChild(saveBtn);
+      list.appendChild(li);
+    } //
+  </script>
+</body>
+</html> 

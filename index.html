@@ -2,129 +2,125 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>나의 할 일</title>
+  <title>경기도 공공체육시설 검색</title>
   <style>
-    body { font-family: sans-serif; max-width: 600px; margin: 20px auto; }
-    h1, h2 { font-weight: bold; }
-    input[type="text"] { width: 80%; padding: 10px; margin: 5px 0; }
-    button { padding: 8px 12px; margin-left: 5px; }
-    li { margin: 10px 0; list-style: none; display: flex; align-items: center; }
-    .task-text { flex-grow: 1; }
-    .task-controls { margin-left: 10px; }
+   
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      max-width: 700px;
+      margin: 2rem auto;
+      padding: 1rem;
+      background-color: #f8f9fa;
+      color: #333;
+    }
+
+    h2 {
+      text-align: center;
+      color: #2c3e50;
+    }
+
+    
+    #searchInput {
+      width: 70%;
+      padding: 0.6rem;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      margin-right: 0.5rem;
+    }
+
+    button {
+      padding: 0.6rem 1.2rem;
+      font-size: 1rem;
+      background-color: #3498db;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #2980b9;
+    }
+
+    
+    ul#facilityList {
+      margin-top: 2rem;
+      padding: 0;
+      list-style: none;
+    }
+
+    ul#facilityList li {
+      background-color: white;
+      margin-bottom: 0.8rem;
+      padding: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+      transition: transform 0.2s;
+    }
+
+    ul#facilityList li:hover {
+      transform: translateY(-3px);
+    }
   </style>
 </head>
 <body>
-  <h1>나의 할 일</h1>
-  <input type="text" id="todoInput" placeholder="할 일 입력" />
-  <button onclick="saveNote()">추가</button>
+  <h2>경기도 공공체육시설 검색</h2>
 
-  <h2>할 일 목록</h2>
-  <ul id="todoList"></ul>
+  <!-- 입력창과 버튼 -->
+  <div style="text-align: center; margin-bottom: 1rem;">
+    <input type="text" id="searchInput" placeholder="시설명이나 주소 검색" />
+    <button onclick="searchFacility()">검색</button>
+  </div>
+
+  <!-- 검색 결과 출력 -->
+  <ul id="facilityList"></ul>
 
   <script>
-    let db;
+    let allFacilities = []; // 전체 시설 저장할 변수
 
-    const request = indexedDB.open("MyTodolistDB", 1);
+    // fetch로 공공데이터 가져오기
+    fetch("https://openapi.gg.go.kr/PubPhstFtM?KEY=a7577b4ca95e4517bd2c24979e9d0504&Type=json&pIndex=1&pSize=100")
+      .then(res => res.json())
+      .then(data => {
+        allFacilities = data.PubPhstFtM[1].row; // 실제 데이터만 추출
+        displayFacilities(allFacilities); // 처음엔 전체 출력
+      })
+      .catch(err => {
+        console.error("데이터 불러오기 실패", err);
+      });
 
-    request.onupgradeneeded = function (e) {
-      db = e.target.result;
-      if (!db.objectStoreNames.contains("List")) {
-        db.createObjectStore("List", { keyPath: "id", autoIncrement: true });
+    // 검색 버튼 눌렀을 때 실행되는 함수
+    function searchFacility() {
+      const keyword = document.getElementById("searchInput").value.trim();
+      if (!keyword) {
+        displayFacilities(allFacilities);
+        return;
       }
-    };
 
-    request.onsuccess = function (e) {
-      db = e.target.result;
-      displayList();
-    };
+      const filtered = allFacilities.filter(item =>
+        item.FACLT_NM.includes(keyword) || item.REFINE_LOTNO_ADDR.includes(keyword)
+      );
 
-    request.onerror = function () {
-      alert("데이터베이스 열기 실패");
-    };
-
-    function saveNote() {
-      const input = document.getElementById("todoInput");
-      const text = input.value.trim();
-      if (!text) return;
-
-      const tx = db.transaction("List", "readwrite");
-      const store = tx.objectStore("List");
-      store.add({ text: text, created: new Date() });
-
-      tx.oncomplete = function () {
-        input.value = "";
-        displayList();
-      };
+      displayFacilities(filtered);
     }
 
-    function displayList() {
-      const list = document.getElementById("todoList");
-      list.innerHTML = "";
+    // 리스트를 HTML에 출력하는 함수
+    function displayFacilities(facilities) {
+      const listEl = document.getElementById("facilityList");
+      listEl.innerHTML = "";
 
-      const tx = db.transaction("List", "readonly");
-      const store = tx.objectStore("List");
-      const request = store.openCursor();
+      if (facilities.length === 0) {
+        listEl.innerHTML = "<li>검색 결과가 없습니다.</li>";
+        return;
+      }
 
-      request.onsuccess = function (e) {
-        const cursor = e.target.result;
-        if (cursor) {
-          const li = document.createElement("li");
-
-          const span = document.createElement("span");
-          span.textContent = cursor.value.text;
-          span.className = "task-text";
-
-          const editBtn = document.createElement("button");
-          editBtn.textContent = "수정";
-          editBtn.onclick = () => editItem(cursor.value.id, cursor.value.text);
-
-          const deleteBtn = document.createElement("button");
-          deleteBtn.textContent = "삭제";
-          deleteBtn.onclick = () => deleteItem(cursor.value.id);
-
-          li.appendChild(span);
-          li.appendChild(editBtn);
-          li.appendChild(deleteBtn);
-
-          list.appendChild(li);
-          cursor.continue();
-        }
-      };
+      facilities.forEach(item => {
+        const li = document.createElement("li");
+        li.innerText = `${item.SIGUN_NM} - ${item.FACLT_NM} (${item.REFINE_LOTNO_ADDR})`;
+        listEl.appendChild(li);
+      });
     }
-
-    function deleteItem(id) {
-      const tx = db.transaction("List", "readwrite");
-      const store = tx.objectStore("List");
-      store.delete(id);
-
-      tx.oncomplete = function () {
-        displayList();
-      };
-    }
-
-    function editItem(id, currentText) {
-      const list = document.getElementById("todoList");
-      list.innerHTML = "";
-
-      const input = document.createElement("input");
-      input.type = "text";
-      input.value = currentText;
-
-      const saveBtn = document.createElement("button");
-      saveBtn.textContent = "저장";
-      saveBtn.onclick = function () {
-        const tx = db.transaction("List", "readwrite");
-        const store = tx.objectStore("List");
-        store.put({ id: id, text: input.value, created: new Date() });
-        tx.oncomplete = () => displayList();
-      };
-
-      const li = document.createElement("li");
-      li.appendChild(input);
-      li.appendChild(saveBtn);
-      list.appendChild(li);
-    } //
   </script>
 </body>
-</html> 
+</html>
